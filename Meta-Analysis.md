@@ -4,6 +4,8 @@ Table of contents
 
 ---------------------------------------------------------------------------------------------------
 
+Functions
+---------
 1/ Function to convert tau and rho in r and to compute Fisher Z score.
 
 For maths, see [Walker, 2003, Journal of Modern Applied Statistical Methods](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwiLr6L1847iAhUC8hoKHdm2BYUQFjAAegQIARAC&url=http%3A%2F%2Fwww.cedu.niu.edu%2F~walker%2Fpersonal%2FWalker%2520Kendall%2527s%2520Tau.pdf&usg=AOvVaw0qglHyyIwZV-so3y07CyCM) and [Zimmerman, Zumbo, & Williams, 2003, Psicología ](https://www.researchgate.net/publication/26421626_Bias_in_Estimation_and_Hypothesis_Testing_of_Correlation)
