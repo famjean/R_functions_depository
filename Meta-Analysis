@@ -3,7 +3,7 @@ Function to convert tau and rho in r and to compute Fisher Z score.
 ```r
 corToFisherZ <- function( rho.tau.r, n, type )
 {
-  # Chekin
+  # Checking
   if ( !any( type %in% c( "Pearson", "Spearman", "Kendall" ) ) ) 
     { stop( "type should be Pearson or Spearman or Kendall" ) }
   
