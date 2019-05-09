@@ -48,3 +48,4 @@ corToFisherZ( c( -0.5, -0.5, -0.5, 0, 0, 0, 0.5, 0.5, 0.5 ),
               c( "Pearson", "Spearman", "Kendall", "Pearson", "Spearman",  "Kendall", "Pearson", "Spearman", "Kendall" ) )
 ```
 
+NB: perform a metaregression on type to test whether transformations bias the meta-analysis.
