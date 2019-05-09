@@ -39,5 +39,10 @@ corToFisherZ <- function( rho.tau.r, n, type )
               fisher.Z.se = fisher.Z.se.specialmethod
               )
 }
+
+# Test 
+corToFisherZ( c( -0.5, -0.5, -0.5, 0, 0, 0, 0.5, 0.5, 0.5 ), 
+              rep(20,9), 
+              c( "Pearson", "Spearman", "Kendall", "Pearson", "Spearman",  "Kendall", "Pearson", "Spearman", "Kendall" ) )
 ```
 
