@@ -1,7 +1,8 @@
 Table of contents
 -----------------
 1/ Function to convert tau and rho in r and to compute Fisher Z score.
-
+2/ Function to compute power   
+   
 ---------------------------------------------------------------------------------------------------
 
 Functions
@@ -64,4 +65,41 @@ NB: perform a metaregression on type to test whether transformations bias the me
 
 -------------------------------------------------------------------
 
+2/ Function to compute power   
+   
+For math an source see [Harrer, Cuijpers, and Ebert, 2019, Online book, Doing Meta-Analysis in R: A Hand-on Guiden chap 14](https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/power-analysis.html) 
+I had generalized the formula by let the user put the ESaverafeSE.  
+
++ theta: wanting result of the meta-analysis, common effect of the studies  
++ k: number of studies in the meta-analysis  
++ ES.average.SE: the average standard error of the analyzed Effect Size. Be carrefull with the transformation in log, etc. 
++ Heterogeneity: hetérogeneity of the studies. "high", "moderate", "low". Default is "high".
++ alpha: level of risk of type II. 
+
+```r
+power.meta.fixed.test <-function( 
+  theta, k, ES.average.SE, heterogeneity = "high", alpha = 0.05 )
+{
+  # Checking
+  if ( !any( heterogeneity %in% c( "low", "moderate", "high" ) ) ) 
+  { stop( "heterogeneity should be low or moderate or high" ) }
+  
+  # Prepare computations
+  zval <- qnorm( 1 - alpha / 2 , 0, 1 )
+  theta.f.var <- 1 / sum( (1 / ES.average.SE^2 ) * k )
+  H <- switch( heterogeneity, "low" = 1.33, "moderate" = 1.67, "high" =  2 )
+  theta.r.var <- theta.f.var * H
+  lambda.f <- theta / sqrt( theta.f.var )
+  lambda.r <- theta / sqrt( theta.r.var )
+  
+  # compute powers
+  power.fixed <- 1 - pnorm( zval - lambda.f ) + pnorm( -zval - lambda.f ) 
+  power.random <- 1 - pnorm( zval - lambda.r ) + pnorm( -zval - lambda.r ) 
+  
+  list( power.fixed = power.fixed,
+        power.random = power.random )
+}
+```
+    
+-------------------------------------------------------------------
 
