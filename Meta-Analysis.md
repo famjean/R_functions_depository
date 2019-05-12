@@ -1,7 +1,8 @@
 Table of contents
 -----------------
-1/ Function to convert tau and rho in r and to compute Fisher Z score.
+1/ Function to convert tau and rho in r and to compute Fisher Z score.   
 2/ Function to compute power   
+3/ Function to perform meta-analysis with studies with missing data   
    
 ---------------------------------------------------------------------------------------------------
 
@@ -102,4 +103,108 @@ power.meta.fixed.test <-function(
 ```
     
 -------------------------------------------------------------------
+   
+3/ Function to perform meta-analysis with studies with missing data   
 
+For maths and details on functions, see [Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer](https://www.springer.com/gb/book/9783319214153)
+
+
+```r
+metacont.miss <- function( 
+  n.e, mean.e, sd.e, p.miss.e, 
+  n.c, mean.c, sd.c, p.miss.c,
+  data = NULL, studlab,
+  mu.e, nu.e, mu.c, nu.c, rho,
+  ...
+  )
+{
+  # require package
+  require( meta )
+  
+  # internal functions
+  chknull <- function(x, name = NULL) {
+    ##
+    ## Check whether argument is NULL
+    ##
+    if (is.null(name))
+      name <- deparse(substitute(x))
+    ##
+    if (is.null(x))
+      stop("Argument '", name, "' is NULL.", call. = FALSE)
+    ##
+    invisible(NULL)
+  }
+  
+  setstudlab <- function(x, k) {
+    ##
+    ## Set study labels
+    ##
+    if (is.null(x))
+      x <- seq(along = rep(1, k))
+    if (is.factor(x))
+      x <- as.character(x)
+    ##
+    x
+  }
+  
+  # check input
+  nulldata <- is.null(data)
+  if (nulldata) 
+    data <- sys.frame(sys.parent())
+  mf <- match.call()
+  n.e <- eval(mf[[match("n.e", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(n.e)
+  k.All <- length(n.e)
+  mean.e <- eval(mf[[match("mean.e", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(mean.e)
+  sd.e <- eval(mf[[match("sd.e", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(sd.e)
+  n.c <- eval(mf[[match("n.c", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(n.c)
+  mean.c <- eval(mf[[match("mean.c", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(mean.c)
+  sd.c <- eval(mf[[match("sd.c", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(sd.c)
+  studlab <- eval(mf[[match("studlab", names(mf))]], data, 
+                  enclos = sys.frame(sys.parent()))
+  studlab <- setstudlab(studlab, k.All)
+  
+  # function for se of studies with missing data
+  semiss <- function(seTE, n.e, p.miss.e, n.c, p.miss.c,
+                     mu.e, nu.e, mu.c, nu.c, rho){
+    V1 <- function(p.miss.e, p.miss.c, nu.e, nu.c, rho)
+      nu.e^2*p.miss.e^2 + nu.c^2*p.miss.c^2 - 2*rho*nu.e*nu.c*p.miss.e*p.miss.c
+    V2 <- function(n.e, p.miss.e, n.c, p.miss.c, mu.e, nu.e, mu.c, nu.c)
+      (mu.e^2+nu.e^2)*p.miss.e*(1-p.miss.e)/n.e +
+      (mu.c^2+nu.c^2)*p.miss.c*(1-p.miss.c)/n.c
+    sqrt(seTE^2 +
+           V1(p.miss.e, p.miss.c, nu.e, nu.c, rho) +
+           V2(n.e, p.miss.e, n.e, p.miss.c,
+              mu.e, nu.e, mu.c, nu.c))
+  }
+  
+  # Classic meta 
+  mm1 <- metacont(  
+             n.e = n.e, mean.e = mean.e, sd.e = sd.e, 
+             n.c = n.c, mean.c = mean.c, sd.c = sd.c,
+             data = data, ... )
+  data$TE <- mm1$TE
+  data$seTE <- mm1$seTE
+  
+  # Adjustment for missing data
+  data$TE.miss <- with( data, TE + mu.e * p.miss.e - mu.c * p.miss.c )
+  data$seTE.miss <- with( data,
+                            semiss( seTE = seTE, 
+                                    n.e = n.e, p.miss.e = p.miss.e, 
+                                    n.c = n.c, p.miss.c = p.miss.c,
+                                    mu.e = mu.e, nu.e = nu.e, 
+                                    mu.c = mu.c, nu.c = nu.c, 
+                                    rho = rho ) )
+  # Relaunch meta
+  metagen( TE = TE.miss, seTE = seTE.miss, 
+           data = data, ... )
+}
+```
+   
+-------------------------------------------------------------------
+   
