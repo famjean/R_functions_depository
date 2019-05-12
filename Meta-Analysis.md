@@ -2,7 +2,8 @@ Table of contents
 -----------------
 1/ Function to convert tau and rho in r and to compute Fisher Z score.   
 2/ Function to compute power   
-3/ Function to perform meta-analysis with studies with missing data   
+3/ Function to perform meta-analysis with studies with missing data (mean difference)   
+4/ Function to perform meta-analysis with studies with missing data (generalization)    
    
 ---------------------------------------------------------------------------------------------------
 
@@ -104,28 +105,28 @@ power.meta.fixed.test <-function(
     
 -------------------------------------------------------------------
    
-3/ Function to perform meta-analysis with studies with missing data   
+3/ Function to perform meta-analysis with studies with missing data (mean difference)   
 
 For maths and details on functions, see [Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer](https://www.springer.com/gb/book/9783319214153)
 
-+ For n.e, mean.e, sd.e, n.c, mean.c, sd.c, data, see ?meta::metacont.   
++ For n.e, mean.e, sd.e, n.c, mean.c, sd.c, see ?meta::metacont.   
 + p.miss.e: percentage of missing data in experimental arm If there is no missing data in study, put 0.      
 + p.miss.c: percentage of missing data in control arm If there is no missing data in study, put 0.      
 + data: An optional data frame containing the study information.   
 + studlab: An optional vector with study labels.   
 + mu.e: mean difference between missing group and observed group for the studies in the experimental arm.   
-+ nu.e: variance of differences between missing group and observed group for the studies in the experimental arm.  
++ nu.e: standard error of differences between missing group and observed group for the studies in the experimental arm.  
 + mu.c: mean difference between missing group and observed group for the studies in the control arm.   
-+ nu.c.c: variance of differences between missing group and observed group for the studies in the control arm.   
++ nu.c.c: standard error of differences between missing group and observed group for the studies in the control arm.   
 + rho: correlation between 1/ the average difference between missing group and observed group for the studies in the experimental arm, and 2/ between missing group and observed group for the studies in the control arm.   
 + ...: arguments to pass to metacont. See ?meta::metacont.   
 
 Details:   
   There are four strategies to deal with missing data. 
   + Fixed equal: mu.e = mu.c = a determined value (e.g. 8 or 20); nu.e = nu.c = 0 ; rho = 0   
-  +
-  +
-  +
+  + Fixed opposite: mu.e =a determined value (e.g. 8 or 20) ; mu.c = -mu.e ; nu.e = nu.c = 0 ; rho = 0   
+  + Random equal: mu.e = mu.c = a determined value (e.g. 8 or 20) ; nu.e = nu.c = a determined value (e.g. sqrt(5) or sqrt(15)) ; rho = 1  
+  + Random opposite (uncorrelated):  mu.e =a determined value (e.g. 8 or 20) ; mu.c = -mu.e ; nu.e = nu.c = a determined value (e.g. sqrt(5) or sqrt(15)) ; rho = 0   
      
 ```r
 metacont.miss <- function( 
@@ -226,3 +227,111 @@ metacont.miss <- function(
    
 -------------------------------------------------------------------
    
+4/ Function to perform meta-analysis with studies with missing data (generalization)  
+
+For maths and details on functions, see [Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer](https://www.springer.com/gb/book/9783319214153)
+
++ For TE, seTE, n.e, n.c, see ?meta::metagen. For OR, put logOR and SE of logOR.  
++ p.miss.e: percentage of missing data in experimental arm If there is no missing data in study, put 0.      
++ p.miss.c: percentage of missing data in control arm If there is no missing data in study, put 0.      
++ data: An optional data frame containing the study information.   
++ studlab: An optional vector with study labels.   
++ mu.e: mean difference between missing group and observed group for the studies in the experimental arm.   
++ nu.e: standard error of differences between missing group and observed group for the studies in the experimental arm.  
++ mu.c: mean difference between missing group and observed group for the studies in the control arm.   
++ nu.c.c: standard error of differences between missing group and observed group for the studies in the control arm.   
++ rho: correlation between 1/ the average difference between missing group and observed group for the studies in the experimental arm, and 2/ between missing group and observed group for the studies in the control arm.   
++ ...: arguments to pass to metacont. See ?meta::metagen.   
+
+Details:   
+  There are four strategies to deal with missing data. 
+  + Fixed equal: mu.e = mu.c = a determined value (e.g. 8 or 20); nu.e = nu.c = 0 ; rho = 0   
+  + Fixed opposite: mu.e =a determined value (e.g. 8 or 20) ; mu.c = -mu.e ; nu.e = nu.c = 0 ; rho = 0   
+  + Random equal: mu.e = mu.c = a determined value (e.g. 8 or 20) ; nu.e = nu.c = a determined value (e.g. sqrt(5) or sqrt(15)) ; rho = 1  
+  + Random opposite (uncorrelated):  mu.e =a determined value (e.g. 8 or 20) ; mu.c = -mu.e ; nu.e = nu.c = a determined value (e.g. sqrt(5) or sqrt(15)) ; rho = 0   
+     
+```r
+metagen.miss <- function( 
+  n.e, mean.e, sd.e, p.miss.e, 
+  n.c, mean.c, sd.c, p.miss.c,
+  data = NULL, studlab,
+  mu.e, nu.e, mu.c, nu.c, rho,
+  ...
+  )
+{
+  # require package
+  require( meta )
+  
+  # internal functions
+  chknull <- function(x, name = NULL) {
+    ##
+    ## Check whether argument is NULL
+    ##
+    if (is.null(name))
+      name <- deparse(substitute(x))
+    ##
+    if (is.null(x))
+      stop("Argument '", name, "' is NULL.", call. = FALSE)
+    ##
+    invisible(NULL)
+  }
+  
+  setstudlab <- function(x, k) {
+    ##
+    ## Set study labels
+    ##
+    if (is.null(x))
+      x <- seq(along = rep(1, k))
+    if (is.factor(x))
+      x <- as.character(x)
+    ##
+    x
+  }
+  
+  # check input
+  nulldata <- is.null(data)
+  if (nulldata) 
+    data <- sys.frame(sys.parent())
+  mf <- match.call()
+  TE <- eval(mf[[match("TE", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  seTE <- eval(mf[[match("seTE", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  n.e <- eval(mf[[match("n.e", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(n.e)
+  k.All <- length(n.e)
+  n.c <- eval(mf[[match("n.c", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  chknull(n.c)
+  studlab <- eval(mf[[match("studlab", names(mf))]], data, 
+                  enclos = sys.frame(sys.parent()))
+  studlab <- setstudlab(studlab, k.All)
+  
+  # function for se of studies with missing data
+  semiss <- function(seTE, n.e, p.miss.e, n.c, p.miss.c,
+                     mu.e, nu.e, mu.c, nu.c, rho){
+    V1 <- function(p.miss.e, p.miss.c, nu.e, nu.c, rho)
+      nu.e^2*p.miss.e^2 + nu.c^2*p.miss.c^2 - 2*rho*nu.e*nu.c*p.miss.e*p.miss.c
+    V2 <- function(n.e, p.miss.e, n.c, p.miss.c, mu.e, nu.e, mu.c, nu.c)
+      (mu.e^2+nu.e^2)*p.miss.e*(1-p.miss.e)/n.e +
+      (mu.c^2+nu.c^2)*p.miss.c*(1-p.miss.c)/n.c
+    sqrt(seTE^2 +
+           V1(p.miss.e, p.miss.c, nu.e, nu.c, rho) +
+           V2(n.e, p.miss.e, n.e, p.miss.c,
+              mu.e, nu.e, mu.c, nu.c))
+  }
+  
+  # Adjustment for missing data
+  data$TE.miss <- with( data, TE + mu.e * p.miss.e - mu.c * p.miss.c )
+  data$seTE.miss <- with( data,
+                            semiss( seTE = seTE, 
+                                    n.e = n.e, p.miss.e = p.miss.e, 
+                                    n.c = n.c, p.miss.c = p.miss.c,
+                                    mu.e = mu.e, nu.e = nu.e, 
+                                    mu.c = mu.c, nu.c = nu.c, 
+                                    rho = rho ) )
+  # Launch meta
+  metagen( TE = TE.miss, seTE = seTE.miss, 
+           data = data, ... )
+}
+```
+NB: The TE must be approximately normally distribued. e.g. for logOR, such analyse could not be applied for rare events.   
+
+-------------------------------------------------------------------
