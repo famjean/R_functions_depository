@@ -108,7 +108,25 @@ power.meta.fixed.test <-function(
 
 For maths and details on functions, see [Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer](https://www.springer.com/gb/book/9783319214153)
 
++ For n.e, mean.e, sd.e, n.c, mean.c, sd.c, data, see ?meta::metacont.   
++ p.miss.e: percentage of missing data in experimental arm If there is no missing data in study, put 0.      
++ p.miss.c: percentage of missing data in control arm If there is no missing data in study, put 0.      
++ data: An optional data frame containing the study information.   
++ studlab: An optional vector with study labels.   
++ mu.e: mean difference between missing group and observed group for the studies in the experimental arm.   
++ nu.e: variance of differences between missing group and observed group for the studies in the experimental arm.  
++ mu.c: mean difference between missing group and observed group for the studies in the control arm.   
++ nu.c.c: variance of differences between missing group and observed group for the studies in the control arm.   
++ rho: correlation between 1/ the average difference between missing group and observed group for the studies in the experimental arm, and 2/ between missing group and observed group for the studies in the control arm.   
++ ...: arguments to pass to metacont. See ?meta::metacont.   
 
+Details:   
+  There are four strategies to deal with missing data. 
+  + Fixed equal: mu.e = mu.c = a determined value (e.g. 8 or 20); nu.e = nu.c = 0 ; rho = 0   
+  +
+  +
+  +
+     
 ```r
 metacont.miss <- function( 
   n.e, mean.e, sd.e, p.miss.e, 
