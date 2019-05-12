@@ -3,7 +3,8 @@ Table of contents
 1/ Function to convert tau and rho in r and to compute Fisher Z score.   
 2/ Function to compute power   
 3/ Function to perform meta-analysis with studies with missing data (mean difference)   
-4/ Function to perform meta-analysis with studies with missing data (generalization)    
+4/ Function to perform meta-analysis with studies with missing data (generalization)   
+5/ Function to test variance between studies   
    
 ---------------------------------------------------------------------------------------------------
 
@@ -334,4 +335,73 @@ metagen.miss <- function(
 ```
 NB: The TE must be approximately normally distribued. e.g. for logOR, such analyse could not be applied for rare events.   
 
+-------------------------------------------------------------------
+   
+5/ Function to test variance between studies   
+   
++ Se: Standard deviation in experimental arm.    
++ Sc: Standard deviation in control arm.    
++ Ne: Number of observations in experimental arm.   
++ Nc: Number of observations in control arm.   
++ data: An optional data frame containing the study information.   
++ studlab: An optional vector with study labels.   
++ round: number of decimal to round.   
+   
+```r
+meta.variance.test <- function( 
+  Se, Sc, Ne, Nc, 
+  data, studlab,
+  round = 3
+)
+{
+  # internal functions
+  setstudlab <- function(x, k) {
+    ##
+    ## Set study labels
+    ##
+    if (is.null(x))
+      x <- seq(along = rep(1, k))
+    if (is.factor(x))
+      x <- as.character(x)
+    ##
+    x
+  }
+  
+  # Check input
+  nulldata <- is.null(data)
+  if (nulldata) 
+    data <- sys.frame(sys.parent())
+  mf <- match.call()
+  Ne <- eval(mf[[match("Nc", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Nc <- eval(mf[[match("Ne", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Se <- eval(mf[[match("Se", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Sc <- eval(mf[[match("Sc", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  k.All <- length(Ne)
+  studlab <- eval(mf[[match("studlab", names(mf))]], data, 
+                  enclos = sys.frame(sys.parent()))
+  studlab <- setstudlab(studlab, k.All)
+  
+  # Test variances
+  Tests.e <- matrix( rep( NA, length(Ne)^2 ), ncol = length(Ne) )
+  Tests.c <- matrix( rep( NA, length(Ne)^2 ), ncol = length(Ne) )
+  
+  for (a in 1:length(Ne) )
+  {
+    f.tests <- c(pf(Se^2/Se[a]^2, Ne-1, Ne[a]-1),
+                 pf(Sc^2/Sc[a]^2, Nc-1, Nc[a]-1))
+    f.tests <- matrix(f.tests, ncol=2)
+    Tests.e[,a] <- f.tests[,1]
+    Tests.c[,a] <- f.tests[,2]
+  }
+  
+  round( Tests.e, round ) -> Tests.e
+  round( Tests.c, round ) -> Tests.c
+  rownames( Tests.e ) <- colnames( Tests.e ) <- studlab
+  rownames( Tests.c ) <- colnames( Tests.c ) <- studlab
+  
+  list( "F Var test on experimental arm" = Tests.e,
+        "F Var test on control arm" = Tests.c )
+}
+```
+   
 -------------------------------------------------------------------
