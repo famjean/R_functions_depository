@@ -4,7 +4,8 @@ Table of contents
 2/ Function to compute power   
 3/ Function to perform meta-analysis with studies with missing data (mean difference)   
 4/ Function to perform meta-analysis with studies with missing data (generalization)   
-5/ Function to test variance between studies   
+5/ Function to test variance between studies (between means)   
+6/ Function to test variance between studies (generalization)   
    
 ---------------------------------------------------------------------------------------------------
 
@@ -337,7 +338,7 @@ NB: The TE must be approximately normally distribued. e.g. for logOR, such analy
 
 -------------------------------------------------------------------
    
-5/ Function to test variance between studies   
+5/ Function to test variance between studies (between means)   
    
 + Se: Standard deviation in experimental arm.    
 + Sc: Standard deviation in control arm.    
@@ -348,9 +349,9 @@ NB: The TE must be approximately normally distribued. e.g. for logOR, such analy
 + round: number of decimal to round.   
    
 ```r
-meta.variance.test <- function( 
+meta.variance.test.means <- function( 
   Se, Sc, Ne, Nc, 
-  data, studlab,
+  data = NULL, studlab,
   round = 3
 )
 {
@@ -401,6 +402,63 @@ meta.variance.test <- function(
   
   list( "F Var test on experimental arm" = Tests.e,
         "F Var test on control arm" = Tests.c )
+}
+```
+   
+-------------------------------------------------------------------
+   
+6/ Function to test variance between studies (generalization)  
+   
++ seES: Standard error of the effect size.      
++ N: Number of observations in the study.   
++ data: An optional data frame containing the study information.   
++ studlab: An optional vector with study labels.   
++ round: number of decimal to round.   
+   
+```r
+meta.variance.test <- function( 
+  seES, N, 
+  data = NULL, studlab,
+  round = 3
+)
+{
+  # internal functions
+  setstudlab <- function(x, k) {
+    ##
+    ## Set study labels
+    ##
+    if (is.null(x))
+      x <- seq(along = rep(1, k))
+    if (is.factor(x))
+      x <- as.character(x)
+    ##
+    x
+  }
+  
+  # Check input
+  nulldata <- is.null(data)
+  if (nulldata) 
+    data <- sys.frame(sys.parent())
+  mf <- match.call()
+  seES <- eval(mf[[match("seES", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  N <- eval(mf[[match("N", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  k.All <- length(N)
+  studlab <- eval(mf[[match("studlab", names(mf))]], data, 
+                  enclos = sys.frame(sys.parent()))
+  studlab <- setstudlab(studlab, k.All)
+  
+  # Test variances
+  Tests <- matrix( rep( NA, length(N)^2 ), ncol = length(N) )
+  
+  for (a in 1:length(N) )
+  {
+    Tests[,a] <- pf( seES^2 / seES[a]^2, N-1, N[a]-1 )
+  }
+  
+  round( Tests, round ) -> Tests
+  rownames( Tests ) <- colnames( Tests ) <- studlab
+  
+  list( "F Var test" = Tests )
 }
 ```
    
