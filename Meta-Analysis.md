@@ -8,7 +8,8 @@ Table of contents
 6/ Function to test variance between studies (generalization)  
 7/ Function to perform meta-imputation (between means)     
 8/ Function to perform meta-imputation (generalization)   
-   
+9/ Function to prepare data for multivariate meta-analysis
+
 ---------------------------------------------------------------------------------------------------
 
 Functions
@@ -703,4 +704,62 @@ meta.imputation <- function(
    
 ---------------------------------------------------------------------------------------------------
   
+
+9/ Function to prepare data for multivariate meta-analysis
    
+For maths and details on functions, see Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer   
+
++ ES: A data.frame with effect size for the evaluations. E.g cbind( score1, score2, ..., scoreN).   
++ Var: A data.frame of variance of the evaluations. E.g cbind( var(score1), var(score2), ..., var(score) )    
++ Covar:  A data.frame of covariance of the evaluations. E.g cbind( covar(score1, score2), covar(score1, score3), ..., covar(score1, scoreN), covar(score2, score3), ..., covar(score2, scoreN), ..., covar(scoreN-1, scoreN) ). NULL if you impute covar with rho.   
++ rho: NULL if covar are know. If not, a data.frame with correlation between the evaluations. If details are not know, impute a specific value. E.g data.frame( cor(score1,score2) = c(0.3,...,0.4), cor(score1, score3) = 0.7, ..., cor(score1, scoreN) = 0.8, cor(score2, score3) = 0.3, ... cor(score2, scoreN), cor(score3,scor4), ...,cor( scoreN-1, scoreN) = 0.3)      
+   
+```r
+preparation_meta.multivariate <- function(
+ ES, Var, Covar = NULL, rho = NULL
+)
+{
+   # Internal function 
+   cor.sdTOcov <- function(sd1, sd2, cor) {sd1*sd2*cor}
+   
+   # Check input
+    # Compute covar
+   if ( is.null( rho ) & is.null( Covar ) ) { stop( "rho or Covar must be filled" ) }
+   if ( is.null( Covar ) )
+   {
+      if ( ncol(rho ) !=  sum( ncol(Var) - 1:ncol(Var) ) ) { stop( paste( "There must be",  sum( ncol(Var) - 1:ncol(Var) ), "covars or rho" ) ) }
+      
+      Covar <- data.frame( matrix( rep( NA, sum( ncol(Var) - 1:ncol(Var) ) * nrow(Var) ), nrow = nrow(Var) ) )
+      for (a in 1:(ncol(Var) - 1) )
+      {
+         for (b in (a + 1):ncol(Var) )
+         {
+            c <- sum( ncol(Var) - 1:a ) - (ncol(Var) - a) + (b - a)
+            Covar[c] <- cor.sdTOcov( Var[a], Var[b], rho[c] ) 
+         }
+      }
+   }
+   
+   if ( ncol( Covar) !=  sum( ncol(Var) - 1:ncol(Var) ) ) { stop( paste( "There must be",  sum( ncol(Var) - 1:ncol(Var) ), "covars or rho" ) ) }
+   
+   # Make VarCovar data.frame
+   VarCovar <- NULL
+  
+   for (a in 1:(ncol(Var) - 1) )
+   {
+      VarCovar <- cbind( VarCovar, Var[,a] )
+      for (b in (a + 1):ncol(Var) )
+      {
+         c <- sum( ncol(Var) - 1:a ) - (ncol(Var) - a) + (b - a)
+         VarCovar <- cbind( VarCovar, Covar[,c] )
+      }
+   }
+   VarCovar <- cbind( VarCovar, Var[,ncol(Var)] )
+
+   list( ES = as.matrix(ES), VarCovar = as.matrix(VarCovar) )
+}
+```
+   
+---------------------------------------------------------------------------------------------------
+  
+      
