@@ -5,7 +5,9 @@ Table of contents
 3/ Function to perform meta-analysis with studies with missing data (mean difference)   
 4/ Function to perform meta-analysis with studies with missing data (generalization)   
 5/ Function to test variance between studies (between means)   
-6/ Function to test variance between studies (generalization)   
+6/ Function to test variance between studies (generalization)  
+7/ Function to perform meta-imputation (between means)     
+8/ Function to perform meta-imputation (generalization)   
    
 ---------------------------------------------------------------------------------------------------
 
@@ -463,3 +465,242 @@ meta.variance.test <- function(
 ```
    
 -------------------------------------------------------------------
+   
+  7/ Function to perform meta-imputation (between means)   
+   
+For maths and details on functions, see Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer   
+   
+Perform a test on variances before applying imputation and exclude study very different variances.   
+   
++ missing: a string vector with the names of study with missing seES.
++ excluded: a string vector with the names of excluded study for imputation. If not, let "".  
++ Me: Mean in experimental arm.    
++ Mc: Mean in control arm.   
++ Se: Standard deviation in experimental arm.    
++ Sc: Standard deviation in control arm.    
++ Ne: Number of observations in experimental arm.   
++ Nc: Number of observations in control arm. 
++ data: An optional data frame containing the study information.   
++ B: number of simulation.    
++ seed: definie number to fix the random.  
+  
+```r
+meta.imputation.means <- function(
+  studies, missing, excluded = "", 
+  Me, Mc, Se, Sc, Ne, Nc,
+  data = NULL, 
+  B = 10000,  
+  seed = 1234
+  )
+{
+  # load package
+  require( meta ) 
+  
+  # Set seed
+  set.seed( seed )
+  
+  # check input
+  nulldata <- is.null(data)
+  if (nulldata) 
+    data <- sys.frame(sys.parent())
+  mf <- match.call()
+  Me <- eval(mf[[match("Me", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Mc <- eval(mf[[match("Mc", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Ne <- eval(mf[[match("Nc", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Nc <- eval(mf[[match("Ne", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Se <- eval(mf[[match("Se", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  Sc <- eval(mf[[match("Sc", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  
+  # select studies
+  toimpute <- !(  studies %in% c( missing, excluded ) )
+  tobeimputed <- studies %in% missing 
+  
+  # Form pooled estimate of variability:
+  S2.e <- sum( ( Ne[toimpute] - 1 ) * Se[toimpute]^2 )
+  S2.c <- sum( ( Nc[toimpute] - 1 ) * Sc[toimpute]^2 )
+  
+  # Calculate degrees of freedom:
+  df.e <- sum( Ne[toimpute] - 1 )
+  df.c <- sum( Nc[toimpute] - 1 )
+  
+  # Stock sd for computations
+  Se.miss <- Se
+  Sc.miss <- Sc
+  
+  # Prepare object to stock results
+  stocker <- data.frame( TE.fixed = rep( NA, B), seTE.fixed = NA,
+                         TE.random = NA, seTE.random = NA,
+                         tau = NA )
+  
+  # Run multiple imputations
+  for (b in 1:B) 
+  {
+    # Draw sigma2.e, sigma2.c
+    sigma2.e <- S2.e / rchisq( 1, df = df.e)
+    sigma2.c <- S2.c / rchisq( 1, df = df.c)
+    
+    # Draw standard deviations for missiing
+    sd.e.miss <- sigma2.e *
+      rchisq( 1, df = Ne[ tobeimputed ] - 1 ) / ( Ne[ tobeimputed ] - 1 )
+    sd.c.miss <- sigma2.c *
+      rchisq( 1, df = Nc[ tobeimputed ] - 1 ) / ( Nc[ tobeimputed ] - 1 )
+    
+    # Meta analyses of current imputed dataset
+    Se.miss[ tobeimputed ] <- sqrt( sd.e.miss )
+    Sc.miss[ tobeimputed ] <- sqrt( sd.e.miss )
+    
+    # Run meta
+    m.miss <- metacont( n.e = Ne, mean.e = Me, sd.e = Se.miss,
+                        n.c = Nc, mean.c = Mc, sd.c = Sc.miss,
+                        data = data )
+    # Store results
+    stocker$TE.fixed[b]    <- m.miss$TE.fixed 
+    stocker$seTE.fixed[b]  <- m.miss$seTE.fixed
+    stocker$TE.random[b]   <- m.miss$TE.random
+    stocker$seTE.random[b] <- m.miss$seTE.random
+    stocker$tau[b]         <- m.miss$tau
+  }
+  
+  # Calculate between and within variances
+  s2.b.fixed  <- var( stocker$TE.fixed )
+  s2.b.random <- var( stocker$TE.random )
+  s2.w.fixed  <- mean( stocker$seTE.fixed^2 )
+  s2.w.random <- mean( stocker$seTE.random^2  )
+ 
+  # Fixed effect estimate using multiple imputation
+  TE.fixed.imp   <- mean( stocker$TE.fixed )
+  seTE.fixed.imp <- sqrt( var( stocker$TE.fixed ) * (1 + 1/B) +
+                           mean( stocker$seTE.fixed^2 ) )
+  
+  # Random effects estimate using multiple imputation
+  TE.random.imp   <- mean( stocker$TE.random )
+  seTE.random.imp <- sqrt( var( stocker$TE.random ) * (1 + 1/B) +
+                            mean( stocker$seTE.random^2 ) )
+  
+  # Calculate degrees of freedom
+  df.fixed  <- (B - 1) * (1 + s2.w.fixed / ( (1 + 1 / B) * s2.b.fixed ) )^2
+  df.random <- (B - 1) * (1 + s2.w.random / ( (1 + 1 / B) * s2.b.random ) )^2
+  
+  cbind( Type = c( "Fixed", "Random" ),
+    rbind(
+    data.frame( ci( TE.fixed.imp, seTE.fixed.imp, df =  df.fixed) )[c(1:5,8,6)],
+    data.frame( ci( TE.random.imp, seTE.random.imp, df =  df.random) )[c(1:5,8,6)]
+  ) )
+}
+```
+   
+---------------------------------------------------------------------------------------------------
+  
+8/ Function to perform meta-imputation (generalization)   
+   
+For maths and details on functions, see Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer   
+
+Perform a test on variances before applying imputation and exclude study very different variances.   
+
++ missing: a string vector with the names of study with missing seES.
++ excluded: a string vector with the names of excluded study for imputation. If not, let "".  
++ ES: Effect size. 
++ seES: Standard error of the effect size.   
++ N: Number of observations.   
++ data:An optional data frame containing the study information.   
++ B: number of simulation.    
++ seed: definie number to fix the random.  
+
+```r
+meta.imputation <- function(
+  studies, missing, excluded = "", 
+  ES, seES, N, 
+  data = NULL, 
+  B = 10000,  
+  seed = 1234
+)
+{
+  # load package
+  require( meta ) 
+  
+  # Set seed
+  set.seed( seed )
+  
+  # check input
+  nulldata <- is.null(data)
+  if (nulldata) 
+    data <- sys.frame(sys.parent())
+  mf <- match.call()
+  ES <- eval(mf[[match("ES", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  seES <- eval(mf[[match("seES", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  N <- eval(mf[[match("N", names(mf))]], data, enclos = sys.frame(sys.parent()))
+  
+  # select studies
+  toimpute <- !(  studies %in% c( missing, excluded ) )
+  tobeimputed <- studies %in% missing 
+  
+  # Form pooled estimate of variability:
+  S2 <- sum( ( N[toimpute] - 1 ) * seES[toimpute]^2 )
+  
+  # Calculate degrees of freedom:
+  df <- sum( N[toimpute] - 1 )
+  
+  # Stock sd for computations
+  S.miss <- seES
+  
+  # Prepare object to stock results
+  stocker <- data.frame( TE.fixed = rep( NA, B), seTE.fixed = NA,
+                         TE.random = NA, seTE.random = NA,
+                         tau = NA )
+  
+  # Run multiple imputations
+  for (b in 1:B) 
+  {
+    # Draw sigma2.
+    sigma2 <- S2 / rchisq( 1, df = df)
+    
+    # Draw standard deviations for missing
+    sd.miss <- sigma2 *
+      rchisq( 1, df = N[ tobeimputed ] - 1 ) / ( N[ tobeimputed ] - 1 )
+    
+    # Meta analyses of current imputed dataset
+    S.miss[ tobeimputed ] <- sqrt( sd.miss )
+    
+    # Run meta
+    m.miss <- metagen( TE = ES, seTE = S.miss,
+                       data = data )
+                        
+    # Store results
+    stocker$TE.fixed[b]    <- m.miss$TE.fixed 
+    stocker$seTE.fixed[b]  <- m.miss$seTE.fixed
+    stocker$TE.random[b]   <- m.miss$TE.random
+    stocker$seTE.random[b] <- m.miss$seTE.random
+    stocker$tau[b]         <- m.miss$tau
+  }
+  
+  # Calculate between and within variances
+  s2.b.fixed  <- var( stocker$TE.fixed )
+  s2.b.random <- var( stocker$TE.random )
+  s2.w.fixed  <- mean( stocker$seTE.fixed^2 )
+  s2.w.random <- mean( stocker$seTE.random^2  )
+  
+  # Fixed effect estimate using multiple imputation
+  TE.fixed.imp   <- mean( stocker$TE.fixed )
+  seTE.fixed.imp <- sqrt( var( stocker$TE.fixed ) * (1 + 1/B) +
+                            mean( stocker$seTE.fixed^2 ) )
+  
+  # Random effects estimate using multiple imputation
+  TE.random.imp   <- mean( stocker$TE.random )
+  seTE.random.imp <- sqrt( var( stocker$TE.random ) * (1 + 1/B) +
+                             mean( stocker$seTE.random^2 ) )
+  
+  # Calculate degrees of freedom
+  df.fixed  <- (B - 1) * (1 + s2.w.fixed / ( (1 + 1 / B) * s2.b.fixed ) )^2
+  df.random <- (B - 1) * (1 + s2.w.random / ( (1 + 1 / B) * s2.b.random ) )^2
+  
+  cbind( Type = c( "Fixed", "Random" ),
+         rbind(
+           data.frame( ci( TE.fixed.imp, seTE.fixed.imp, df =  df.fixed) )[c(1:5,8,6)],
+           data.frame( ci( TE.random.imp, seTE.random.imp, df =  df.random) )[c(1:5,8,6)]
+         ) )
+}
+```
+   
+---------------------------------------------------------------------------------------------------
+  
+   
