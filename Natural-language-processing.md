@@ -22,7 +22,7 @@ lemmatization.corpus <- function( corpus, lang = "fr",
                                   unknown.words = TRUE )
 {
   # require package
-  require( quanteda ) ; require( koRpus )
+  require( quanteda ) ; require( koRpus ) ; require( tm ) ;
   
   require( paste0( "koRpus.lang.", lang ), character.only = TRUE )
   
@@ -53,26 +53,23 @@ lemmatization.corpus <- function( corpus, lang = "fr",
   } ;
   
   # Job
-  if ( unknown.words )
+   if ( unknown.words )
   {
-    lapply( 1:length(corpus), 
-            function( a, corpus) 
-            {
-              
-              vector1 <- NULL 
-              
-              lapply( 1:length( corpus[[a]][[1]] ),  
-                      function(b, corpus){
-                        corpus[[a]][[1]][b] %>%
+   
+   for ( a in  1:length(corpus) )
+   {
+     for ( b in 1:length( corpus[[a]][[1]] ) )
+     {
+       corpus[[a]][[1]][b] %>%
                           quanteda::tokens(.) %>% 
                           as.character(.) %>%
-                          koRpus::treetag( ., 
-                                           treetagger = "manual", 
-                                           format = "obj", TT.tknz = FALSE, 
-                                           lang = lang, 
-                                           debug = TRUE,
-                                           TT.options = list(path = treetaggerfilepath, 
-                                                             preset = lang ) ) ->
+                           koRpus::treetag( ., 
+                        treetagger = "manual", 
+                        format = "obj", TT.tknz = FALSE, 
+                        lang = lang, 
+                        debug = TRUE,
+                        TT.options = list(path = treetaggerfilepath, 
+                                           preset = lang ) ) ->
                           lemma ;
                         
                         lemma[ lemma[, "lemma"] == "<unknown>","token"] ->
@@ -80,63 +77,40 @@ lemmatization.corpus <- function( corpus, lang = "fr",
                         
                         lemma[ is.na( lemma[, "lemma"] ) ,"token"] ->
                           lemma[is.na( lemma[, "lemma"] ) ,"lemma"] ;
-                        
+              
                         lemma[, "lemma"] %>%
                           String.Concatener( ., " " ) ->
-                          lemma ; 
-                        
-                        return( lemma )
-                      }, 
-                      corpus) %>%
-                c( vector1, .) ->
-                vector1 ;
-              
-              return( unlist( vector1 ) )
-            },
-            corpus ) ->
-      corpus[[a]][[1]] ;
+                              lemma ; 
+                        lemma -> 
+                          corpus[[a]][[1]][b] ; 
+     }
+   }
+   
   } else
   {
-    lapply( 1:length(corpus), 
-            function( a, corpus) 
-            {
-              
-              vector1 <- NULL 
-              
-              lapply( 1:length( corpus[[a]][[1]] ),  
-                      function(b, corpus){
-                        corpus[[a]][[1]][b] %>%
+    for ( a in  1:length(corpus) )
+   {
+     for ( b in 1:length( corpus[[a]][[1]] ) )
+     {
+       corpus[[a]][[1]][b] %>%
                           quanteda::tokens(.) %>% 
                           as.character(.) %>%
-                          koRpus::treetag( ., 
-                                           treetagger = "manual", 
-                                           format = "obj", TT.tknz = FALSE, 
-                                           lang = lang, 
-                                           debug = TRUE,
-                                           TT.options = list(path = treetaggerfilepath, 
-                                                             preset = lang ) ) ->
+                           koRpus::treetag( ., 
+                        treetagger = "manual", 
+                        format = "obj", TT.tknz = FALSE, 
+                        lang = lang, 
+                        debug = TRUE,
+                        TT.options = list(path = treetaggerfilepath, 
+                                           preset = lang ) ) ->
                           lemma ;
-                        
-                        lemma[ lemma[, "lemma"] == "<unknown>","token"] ->
-                          lemma[ lemma[, "lemma"] == "<unknown>","lemma"] ;
-                        
-                        lemma[ is.na( lemma[, "lemma"] ) ,"token"] ->
-                          lemma[is.na( lemma[, "lemma"] ) ,"lemma"] ;
-                        
+              
                         lemma[, "lemma"] %>%
                           String.Concatener( ., " " ) ->
-                          lemma ; 
-                        
-                        return( lemma )
-                      }, 
-                      corpus) %>%
-                c( vector1, .) ->
-                vector1 ;
-              
-              return( unlist( vector1 ) )
-            },
-            corpus ) ->
-      corpus[[a]][[1]] ;
+                              lemma ; 
+                        lemma -> 
+                          corpus[[a]][[1]][b] ; 
+     }
+   }
   }
   
   return( corpus )
