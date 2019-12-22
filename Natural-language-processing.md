@@ -1,6 +1,7 @@
 Table of contents
 -----------------
 1/ Function to lemmatize corpus
+2/ Function to clean text (remove special characters, numbers, uppercases, punctuation and stripWhitespace, +- remove stopwords, +- remove defined words)
 
 ---------------------------------------------------------------------------------------------------
 
@@ -21,10 +22,29 @@ lemmatization.corpus <- function( corpus, lang = "fr",
                                   treetaggerfilepath = "~/Programs/Treetagger/",
                                   unknown.words = TRUE )
 {
-  # require package
-  require( quanteda ) ; require( koRpus ) ; require( tm ) ;
+  # install packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
   
-  require( paste0( "koRpus.lang.", lang ), character.only = TRUE )
+  load.packages( c( "quanteda", "tm") , install = TRUE, load = FALSE )
+  
+  # load packages
+  load.packages( c( "koRpus", paste0( "koRpus.lang.", lang ), "dplyr" ) , install = TRUE, load = TRUE )
   
   # function
   String.Concatener <- function( vector, separator )
@@ -116,3 +136,88 @@ lemmatization.corpus <- function( corpus, lang = "fr",
   return( corpus )
 }
 ```
+
+-------------------------------------------------------------------
+
+2/ Function to clean text (remove special characters, numbers, uppercases, punctuation and stripWhitespace, +- remove stopwords, +- remove defined words)
+
++ 
+```r
+TextCleaning <- function( corpus, WordsToRM = NULL, 
+                          RMstopwords = TRUE,
+                          language = "en", 
+                          RMpunctuation = TRUE )
+{
+  # install/load packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
+  
+  load.packages( c( "tm") , install = TRUE, load = FALSE )
+  load.packages( c( "dplyr" ) , install = TRUE, load = TRUE )
+  
+  # domestic functions 
+  toSpace <- tm::content_transformer( function(x, pattern) { return (gsub(pattern, " ", x) ) } ) 
+  
+  # job
+  if ( RMstopwords ) 
+  {
+    corpus %>%
+      tm::tm_map(., tm::removeWords, tm::stopwords(language) ) -> 
+      corpus ;
+  }
+  
+  if ( RMpunctuation ) 
+  {
+    corpus %>%
+      tm::tm_map(., tm::removePunctuation) ->
+      corpus ;
+  }
+  
+  
+  if ( !is.null(WordsToRM) ) 
+    { corpus %>% 
+      tm::tm_map(., tm::removeWords, WordsToRM ) -> 
+      corpus ; } ;
+  
+  
+  corpus %>% 
+    tm::tm_map(., toSpace, "/") %>%
+    tm::tm_map(., toSpace, "@") %>% 
+    tm::tm_map(., toSpace, "\\|") %>%
+    tm::tm_map(., toSpace, "#") %>% 
+    tm::tm_map(., toSpace, "$") %>% 
+    tm::tm_map(., toSpace, "€" ) %>%
+    tm::tm_map(., toSpace, ":") %>% 
+    tm::tm_map(., toSpace, "-") %>% 
+    tm::tm_map(., toSpace, "'") %>%
+    tm::tm_map(., toSpace, "’") %>%
+    tm::tm_map(., toSpace, "\\(") %>%
+    tm::tm_map(., toSpace, "\\)") %>%
+    tm::tm_map(., toSpace, "\\{") %>%
+    tm::tm_map(., toSpace, "\\}") %>%
+    tm::tm_map(., toSpace, "\\[") %>%
+    tm::tm_map(., toSpace, "\\]") %>%
+    tm::tm_map(., tm::removeNumbers) %>% 
+    tm::tm_map(., tm::content_transformer(tolower) ) %>% 
+    tm::tm_map(., tm::stripWhitespace) -> 
+    corpus ;
+  
+  return( corpus ) ;
+} 
+```
+-------------------------------------------------------------------

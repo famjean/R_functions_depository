@@ -142,8 +142,26 @@ metacont.miss <- function(
   ...
   )
 {
-  # require package
-  require( meta )
+  # install packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
+  
+  load.packages( "meta", install = TRUE, load = FALSE )
   
   # internal functions
   chknull <- function(x, name = NULL) {
@@ -208,7 +226,7 @@ metacont.miss <- function(
   }
   
   # Classic meta 
-  mm1 <- metacont(  
+  mm1 <- meta::metacont(  
              n.e = n.e, mean.e = mean.e, sd.e = sd.e, 
              n.c = n.c, mean.c = mean.c, sd.c = sd.c,
              data = data, ... )
@@ -225,7 +243,7 @@ metacont.miss <- function(
                                     mu.c = mu.c, nu.c = nu.c, 
                                     rho = rho ) )
   # Relaunch meta
-  metagen( TE = TE.miss, seTE = seTE.miss, 
+  meta::metagen( TE = TE.miss, seTE = seTE.miss, 
            data = data, ... )
 }
 ```
@@ -264,8 +282,27 @@ metagen.miss <- function(
   ...
   )
 {
-  # require package
-  require( meta )
+
+  # install packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
+  
+  load.packages( "meta", install = TRUE, load = FALSE )
   
   # internal functions
   chknull <- function(x, name = NULL) {
@@ -333,7 +370,7 @@ metagen.miss <- function(
                                     mu.c = mu.c, nu.c = nu.c, 
                                     rho = rho ) )
   # Launch meta
-  metagen( TE = TE.miss, seTE = seTE.miss, 
+  meta::metagen( TE = TE.miss, seTE = seTE.miss, 
            data = data, ... )
 }
 ```
@@ -467,7 +504,7 @@ meta.variance.test <- function(
    
 -------------------------------------------------------------------
    
-  7/ Function to perform meta-imputation (between means)   
+7/ Function to perform meta-imputation (between means)   
    
 For maths and details on functions, see Schartzer, Carpenter, and Rücker, 2014, book: Leta-Analysis with R, Springer   
    
@@ -494,8 +531,26 @@ meta.imputation.means <- function(
   seed = 1234
   )
 {
-  # load package
-  require( meta ) 
+  # install packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
+  
+  load.packages( "meta", install = TRUE, load = FALSE )
   
   # Set seed
   set.seed( seed )
@@ -551,7 +606,7 @@ meta.imputation.means <- function(
     Sc.miss[ tobeimputed ] <- sqrt( sd.e.miss )
     
     # Run meta
-    m.miss <- metacont( n.e = Ne, mean.e = Me, sd.e = Se.miss,
+    m.miss <- meta::metacont( n.e = Ne, mean.e = Me, sd.e = Se.miss,
                         n.c = Nc, mean.c = Mc, sd.c = Sc.miss,
                         data = data )
     # Store results
@@ -616,8 +671,26 @@ meta.imputation <- function(
   seed = 1234
 )
 {
-  # load package
-  require( meta ) 
+  # install packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
+  
+  load.packages( "meta", install = TRUE, load = FALSE )
   
   # Set seed
   set.seed( seed )
@@ -663,7 +736,7 @@ meta.imputation <- function(
     S.miss[ tobeimputed ] <- sqrt( sd.miss )
     
     # Run meta
-    m.miss <- metagen( TE = ES, seTE = S.miss,
+    m.miss <- meta::metagen( TE = ES, seTE = S.miss,
                        data = data )
                         
     # Store results
