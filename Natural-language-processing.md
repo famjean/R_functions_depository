@@ -2,6 +2,7 @@ Table of contents
 -----------------
 1/ Function to lemmatize corpus
 2/ Function to clean text (remove special characters, numbers, uppercases, punctuation and stripWhitespace, +- remove stopwords, +- remove defined words)
+3/ Function to describe the corpus (number of words, sentences, paragraphs, TTR and spartisity)
 
 ---------------------------------------------------------------------------------------------------
 
@@ -13,7 +14,7 @@ Functions
 
 !! to know available langages : `r koRpus::available.koRpus.lang()` keep the last two letters : fr for frenche, en for english
 
-+ corpus : a corpus of tm package (! different of qunateda) 
++ corpus : a corpus of tm package (! different of quanteda) 
 + treetaggerfilepath : the filepath of treetagger library, e.g. "~/Programs/Treetagger/"
 + unknown.words : if TRUE keep the words which are unknown of the lexic. If FALSE, there are deleted. 
 
@@ -141,12 +142,19 @@ lemmatization.corpus <- function( corpus, lang = "fr",
 
 2/ Function to clean text (remove special characters, numbers, uppercases, punctuation and stripWhitespace, +- remove stopwords, +- remove defined words)
 
-+ 
++ corpus : a corpus of tm package (! different of quanteda) 
++ langage : langage of the corpus, put two letters inside "", see tm::stopwords to explore available langages.
++ RMstopwords : if TRUE, remove the stopwords, if FALSE, let its. Stop words are generally the most common words in a language.
++ RMpunctuation : if TRUE, remove the punctuation, if FALSE, let it.
++ WordsToRM : a string with the words to delete, if NULL, it doesn't delete words.
+
 ```r
-TextCleaning <- function( corpus, WordsToRM = NULL, 
-                          RMstopwords = TRUE,
+TextCleaning <- function( corpus, 
                           language = "en", 
-                          RMpunctuation = TRUE )
+                          RMstopwords = TRUE,
+                          RMpunctuation = TRUE,
+                          WordsToRM = NULL
+                         )
 {
   # install/load packages
   load.packages <- function( PackagesNames, ..., 
@@ -220,4 +228,158 @@ TextCleaning <- function( corpus, WordsToRM = NULL,
   return( corpus ) ;
 } 
 ```
+-------------------------------------------------------------------
+
+3/ Function to describe the corpus (number of words, sentences, paragraphs, TTR and spartisity)
+
++ corpus : a corpus of tm package (! different of quanteda) 
++ doc.name : definie a string with the names of documents, put NULL to do nothing
++ round : number of decimals for indicators, put NULL to do nothing
+```r
+Corpus.Description <- function( corpus, 
+                                doc.name = NULL, 
+                                round = 2 )
+{
+  # install packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
+  
+  load.packages( c( "quanteda", "tm") , install = TRUE, load = FALSE )
+  
+  # load packages
+  load.packages( c( "dplyr" ) , install =   TRUE, load = TRUE )
+  
+  # domestic functions 
+  as.numeric.data.frame <- function( dataframe )
+  {
+    for ( a in 1:dim( dataframe )[2] )
+    {
+      if ( sum( is.na( as.numeric( as.character( dataframe[,a] ) ) ) ) == 
+           sum( is.na( dataframe[,a] ) ) )
+      { 
+        dataframe[,a] <- as.numeric( as.character( dataframe[,a] ) )
+      } ;
+    } ;
+    return( dataframe ) ;
+  } ;
+
+  
+  # job
+  corpus %>% 
+    lapply( ., as.character) %>% 
+    lapply( ., length) %>% 
+    unlist(.) %>% 
+    cbind( document = names(.) , paragraphs = .) %>%     
+    as.data.frame -> 
+    paragraphs ;
+  
+  corpus %>%
+    lapply( ., as.character ) %>%
+    lapply( ., function(x) gsub( ",|’|-|—|_|(|)|[|]|/", "", x ) ) %>%
+    lapply( ., function(x) unlist( strsplit( x, "\\.|\\!|\\?|\\;|:" ) ) ) %>%
+    lapply( ., length ) %>%
+    unlist(.) %>% 
+    cbind( document = names(.) , sentences = .) %>% 
+    as.data.frame(.) ->
+    sentences ;
+  
+  corpus %>%
+    tm::TermDocumentMatrix(.) %>%
+    as.matrix(.) %>% 
+    colSums(.) %>%  
+    cbind( document = names(.), words = .) %>% 
+    as.data.frame ->
+    words ;
+  
+  corpus %>%
+    quanteda::corpus(.) %>%
+    quanteda::dfm(.) %>%
+    quanteda::textstat_lexdiv(.) %>%
+    mutate( ., document = .$document ) ->
+    lexdiv ;
+  
+  merge( words, sentences, by = "document" ) %>%
+    merge( ., paragraphs, by = "document" ) %>%
+    merge( ., lexdiv, by = "document" ) ->
+    output ;
+  
+  
+  output %>%
+    as.numeric.data.frame ->
+    output ;
+  
+  output$document %>%
+    as.character ->
+    output$document ;
+  
+  output[,2:4] %>% 
+    colSums(.) -> 
+    tmp ;
+  
+  corpus %>%
+    quanteda::corpus(.) %>%
+    quanteda::dfm(.) %>% 
+    as.matrix()%>% 
+    apply( ., 2, sum) %>% 
+    matrix( ., nrow = 1, dimnames = list( c( "All documents"), names(.) ) ) %>% 
+    quanteda::as.dfm(.) %>% 
+    quanteda::textstat_lexdiv(.) %>%
+    dplyr::select( -1 ) %>%
+    as.numeric(.) %>%
+    c( tmp, . ) ->
+    tmp ;
+  
+  rbind( output,
+         c( "Total", tmp) ) %>%
+    as.numeric.data.frame(.) ->
+    output ;
+  
+  corpus %>%
+    tm::TermDocumentMatrix(.) %>% 
+    as.matrix(.) %>%
+    apply( .,
+           2,
+           function(x) { length( x[ x == 0 ] ) / length( x ) } ) %>%
+    c( .,
+       quanteda::sparsity( quanteda::dfm( quanteda::corpus( corpus ) ) ) ) ->
+    sparsity ;
+  
+  output %>%
+    cbind.data.frame( .,
+                      sparsity = sparsity ) ->
+    output ;
+    
+  if ( !is.null( round ) ) 
+  {
+    output[,-1] %>%
+      round( ., round ) ->
+      output[,-1] ;
+  }
+  
+    if ( !is.null( doc.name ) ) 
+  {
+    output[,1] <- c( doc.name, "Total" ) ;
+  }
+  
+  NULL -> rownames( output ) ; 
+  
+  return( output )
+}
+```
+
 -------------------------------------------------------------------
