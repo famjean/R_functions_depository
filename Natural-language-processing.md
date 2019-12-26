@@ -284,8 +284,7 @@ Corpus.Description <- function( corpus,
     lapply( ., as.character) %>% 
     lapply( ., length) %>% 
     unlist(.) %>% 
-    cbind( document = names(.) , paragraphs = .) %>%     
-    as.data.frame -> 
+    cbind( document = names(.) , paragraphs = .) -> 
     paragraphs ;
   
   corpus %>%
@@ -294,23 +293,21 @@ Corpus.Description <- function( corpus,
     lapply( ., function(x) unlist( strsplit( x, "\\.|\\!|\\?|\\;|:" ) ) ) %>%
     lapply( ., length ) %>%
     unlist(.) %>% 
-    cbind( document = names(.) , sentences = .) %>% 
-    as.data.frame(.) ->
+    cbind( document = names(.) , sentences = .) ->
     sentences ;
   
   corpus %>%
     tm::TermDocumentMatrix(.) %>%
     as.matrix(.) %>% 
     colSums(.) %>%  
-    cbind( document = names(.), words = .) %>% 
-    as.data.frame ->
+    cbind( document = names(.), words = .) ->
     words ;
   
   corpus %>%
     quanteda::corpus(.) %>%
     quanteda::dfm(.) %>%
     quanteda::textstat_lexdiv(.) %>%
-    mutate( ., document = .$document ) ->
+    mutate( ., document = gsub("text", "", .$document ) ) ->
     lexdiv ;
   
   merge( words, sentences, by = "document" ) %>%
@@ -318,13 +315,12 @@ Corpus.Description <- function( corpus,
     merge( ., lexdiv, by = "document" ) ->
     output ;
   
-  
   output %>%
-    as.numeric.data.frame ->
+    as.numeric.data.frame(.) ->
     output ;
   
   output$document %>%
-    as.character ->
+    as.character(.) ->
     output$document ;
   
   output[,2:4] %>% 
@@ -345,7 +341,8 @@ Corpus.Description <- function( corpus,
     tmp ;
   
   rbind( output,
-         c( "Total", tmp) ) %>%
+         c( "Total", tmp) 
+         ) %>%
     as.numeric.data.frame(.) ->
     output ;
   
