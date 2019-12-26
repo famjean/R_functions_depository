@@ -3,6 +3,7 @@ Table of contents
 1/ Function to lemmatize corpus
 2/ Function to clean text (remove special characters, numbers, uppercases, punctuation and stripWhitespace, +- remove stopwords, +- remove defined words)
 3/ Function to describe the corpus (number of words, sentences, paragraphs, TTR and spartisity)
+4/ Function to class terms by tf*idf
 
 ---------------------------------------------------------------------------------------------------
 
@@ -374,6 +375,136 @@ Corpus.Description <- function( corpus,
   }
   
   NULL -> rownames( output ) ; 
+  
+  return( output )
+}
+```
+
+-------------------------------------------------------------------
+
+4/ Function to class terms by tf*idf
+
++ tdm : a term document matrix of tm package (! different of quanteda) 
+```r
+tf.idf.rank <- function( tdm )
+{
+  # install packages
+  load.packages <- function( PackagesNames, ..., 
+                             install = TRUE, 
+                             load = TRUE )
+  {
+    # Get a vector with packages names 
+    packages1 <- c( PackagesNames, ... ) ;
+    
+    # Require or install and require packages
+    lapply( 1:length( packages1 ),
+            function(a)
+            {
+              if ( install ) 
+              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              { install.packages( packages1[a] ) } }
+              if ( load ) { require( packages1[a], character.only = TRUE  )  }
+            } ) -> tmp
+  } 
+  
+  # load packages
+  load.packages( c( "dplyr" ) , install =   TRUE, load = TRUE )
+  
+  tdm %>% 
+    as.matrix(.) ->
+    tdm ;
+  
+  # Total count 
+  tdm %>% 
+    data.frame( ., total = rowSums(.) ) %>%
+    dplyr::select( ., total) ->
+      total ;
+  
+  # tf
+  tdm %>% 
+    colSums() ->
+    Total.words ;
+  
+  tdm -> tdm.tfprop ;
+  for (a in 1:dim(tdm)[2] )
+  {
+    tdm[,a] / Total.words[a] ->
+      tdm.tfprop[,a] ;
+  }
+  
+  paste( colnames(tdm), 
+         "tfprop", 
+         sep = "." ) ->
+    colnames( tdm.tfprop ) ;
+  
+  # idf 
+  dim( tdm )[2] -> nb.doc ;
+  
+  NULL -> idf ;
+  for (a in 1:dim(tdm)[1] )
+  {
+    tdm[a,] > 0 ->
+      nb.doc.with.term ;
+    
+    sum( nb.doc.with.term ) ->
+      nb.doc.with.term ;
+    
+    c( idf, log( nb.doc / nb.doc.with.term ) ) ->
+      idf
+  }
+    
+  # tf * idf
+  tdm -> tdm.tf.x.idf ;
+  for (a in 1:dim(tdm)[2] )
+  {
+    tdm[,a] * idf ->
+      tdm.tf.x.idf[,a] ;
+  }
+  
+  paste( colnames(tdm), 
+         "tf.x.idf", 
+         sep = "." ) ->
+    colnames( tdm.tf.x.idf ) ;
+  
+  # tfprop * idf
+  tdm -> tdm.tfprop.x.idf ;
+  for (a in 1:dim(tdm)[2] )
+  {
+    tdm.tfprop[,a] * idf ->
+      tdm.tfprop.x.idf[,a] ;
+  }
+  
+  paste( colnames(tdm), 
+         "tfprop.x.idf", 
+         sep = "." ) ->
+    colnames( tdm.tfprop.x.idf ) ;
+  
+  # rank
+  tdm -> tdm.rank ;
+  for (a in 1:dim(tdm)[2] )
+  {
+    rank( tdm[,a] ) ->
+      tdm.rank[,a] ;
+  }
+  
+  paste( colnames(tdm), 
+         "rank", 
+         sep = "." ) ->
+    colnames( tdm.rank ) ;
+  
+  # fusion
+  cbind.data.frame( terms = rownames( tdm ),
+                    total,
+                    idf = idf,
+                    tdm,
+                    tdm.tfprop,
+                    tdm.tf.x.idf,
+                    tdm.tfprop.x.idf,
+                    tdm.rank ) ->
+    output ;
+
+  rownames( tdm ) ->
+    rownames( output ) ;
   
   return( output )
 }
