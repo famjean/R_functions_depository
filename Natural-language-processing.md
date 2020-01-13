@@ -237,118 +237,116 @@ TextCleaning <- function( corpus,
 + doc.name : definie a string with the names of documents, put NULL to do nothing
 + round : number of decimals for indicators, put NULL to do nothing
 ```r
-Corpus.Description <- function( corpus, 
-                                doc.name = NULL, 
+Corpus.Description <- function( corpus,
+                                doc.name = NULL,
                                 round = 2 )
 {
   # install packages
-  load.packages <- function( PackagesNames, ..., 
-                             install = TRUE, 
+  load.packages <- function( PackagesNames, ...,
+                             install = TRUE,
                              load = TRUE )
   {
-    # Get a vector with packages names 
+    # Get a vector with packages names
     packages1 <- c( PackagesNames, ... ) ;
-    
+
     # Require or install and require packages
     lapply( 1:length( packages1 ),
             function(a)
             {
-              if ( install ) 
-              { if ( !packages1[a] %in% installed.packages()[,1] ) 
+              if ( install )
+              { if ( !packages1[a] %in% installed.packages()[,1] )
               { install.packages( packages1[a] ) } }
               if ( load ) { require( packages1[a], character.only = TRUE  )  }
             } ) -> tmp
-  } 
-  
+  }
+
   load.packages( c( "quanteda", "tm") , install = TRUE, load = FALSE )
-  
+
   # load packages
   load.packages( c( "dplyr" ) , install =   TRUE, load = TRUE )
-  
-  # domestic functions 
+
+  # domestic functions
   as.numeric.data.frame <- function( dataframe )
   {
     for ( a in 1:dim( dataframe )[2] )
     {
-      if ( sum( is.na( as.numeric( as.character( dataframe[,a] ) ) ) ) == 
-           sum( is.na( dataframe[,a] ) ) )
-      { 
-        dataframe[,a] <- as.numeric( as.character( dataframe[,a] ) )
-      } ;
+      dataframe[,a] <- as.numeric( as.character( dataframe[,a] ) )
     } ;
     return( dataframe ) ;
   } ;
 
-  
+
   # job
-  corpus %>% 
-    lapply( ., as.character) %>% 
-    lapply( ., length) %>% 
-    unlist(.) %>% 
-    cbind( document = names(.) , paragraphs = .) -> 
+  corpus %>%
+    lapply( ., as.character) %>%
+    lapply( ., length) %>%
+    unlist(.) %>%
+    cbind( document = names(.) , paragraphs = .) ->
     paragraphs ;
-  
+
   corpus %>%
     lapply( ., as.character ) %>%
     lapply( ., function(x) gsub( ",|’|-|—|_|(|)|[|]|/", "", x ) ) %>%
     lapply( ., function(x) unlist( strsplit( x, "\\.|\\!|\\?|\\;|:" ) ) ) %>%
     lapply( ., length ) %>%
-    unlist(.) %>% 
+    unlist(.) %>%
     cbind( document = names(.) , sentences = .) ->
     sentences ;
-  
+
   corpus %>%
     tm::TermDocumentMatrix(.) %>%
-    as.matrix(.) %>% 
+    as.matrix(.) %>%
     colSums(.) %>%  
     cbind( document = names(.), words = .) ->
     words ;
-  
+
   corpus %>%
     quanteda::corpus(.) %>%
     quanteda::dfm(.) %>%
     quanteda::textstat_lexdiv(.) %>%
     mutate( ., document = gsub("text", "", .$document ) ) ->
     lexdiv ;
-  
+
   merge( words, sentences, by = "document" ) %>%
     merge( ., paragraphs, by = "document" ) %>%
     merge( ., lexdiv, by = "document" ) ->
     output ;
-  
-  output %>%
+
+  output[,-1] %>%
     as.numeric.data.frame(.) ->
-    output ;
-  
+    output[,-1] ;
+
   output$document %>%
     as.character(.) ->
     output$document ;
-  
-  output[,2:4] %>% 
-    colSums(.) -> 
+
+  output[,2:4] %>%
+    colSums(.) ->
     tmp ;
-  
+
   corpus %>%
     quanteda::corpus(.) %>%
-    quanteda::dfm(.) %>% 
-    as.matrix()%>% 
-    apply( ., 2, sum) %>% 
-    matrix( ., nrow = 1, dimnames = list( c( "All documents"), names(.) ) ) %>% 
-    quanteda::as.dfm(.) %>% 
+    quanteda::dfm(.) %>%
+    as.matrix()%>%
+    apply( ., 2, sum) %>%
+    matrix( ., nrow = 1, dimnames = list( c( "All documents"), names(.) ) ) %>%
+    quanteda::as.dfm(.) %>%
     quanteda::textstat_lexdiv(.) %>%
     dplyr::select( -1 ) %>%
     as.numeric(.) %>%
     c( tmp, . ) ->
     tmp ;
-  
+
   rbind( output,
-         c( "Total", tmp) 
-         ) %>%
-    as.numeric.data.frame(.) ->
-    output ;
+         c( "Total", tmp)
+         ) -> output ; 
   
+  output[,-1] %>%
+    as.numeric.data.frame(.) ->
+    output[,-1] ;
+
   corpus %>%
-    tm::TermDocumentMatrix(.) %>% 
+    tm::TermDocumentMatrix(.) %>%
     as.matrix(.) %>%
     apply( .,
            2,
@@ -356,26 +354,26 @@ Corpus.Description <- function( corpus,
     c( .,
        quanteda::sparsity( quanteda::dfm( quanteda::corpus( corpus ) ) ) ) ->
     sparsity ;
-  
+
   output %>%
     cbind.data.frame( .,
                       sparsity = sparsity ) ->
     output ;
-    
-  if ( !is.null( round ) ) 
+
+  if ( !is.null( round ) )
   {
     output[,-1] %>%
       round( ., round ) ->
       output[,-1] ;
   }
-  
-    if ( !is.null( doc.name ) ) 
+
+    if ( !is.null( doc.name ) )
   {
     output[,1] <- c( doc.name, "Total" ) ;
   }
-  
-  NULL -> rownames( output ) ; 
-  
+
+  NULL -> rownames( output ) ;
+
   return( output )
 }
 ```
